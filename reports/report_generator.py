@@ -1,7 +1,10 @@
 import io
+import os
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.pdfmetrics import registerFont
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image,
 )
@@ -18,22 +21,66 @@ from datetime import date
 
 class ReportGenerator:
 
+    FONT_REGULAR = "Helvetica"
+    FONT_BOLD = "Helvetica-Bold"
+
     def __init__(self):
         self.company_repo = CompanyRepository()
         self.product_repo = ProductRepository()
         self.sales_repo = SalesRepository()
         self.marketshare_repo = MarketShareRepository()
+        self._register_fonts()
         self.styles = getSampleStyleSheet()
+        self.style_title = ParagraphStyle(
+            "Title", fontName=self.FONT_BOLD, fontSize=24, leading=28,
+        )
+        self.style_heading = ParagraphStyle(
+            "Heading2", fontName=self.FONT_BOLD, fontSize=14, leading=18,
+            spaceBefore=12, spaceAfter=6,
+        )
+        self.style_normal = ParagraphStyle(
+            "Normal", fontName=self.FONT_REGULAR, fontSize=10, leading=12,
+        )
+
+    def _register_fonts(self):
+        candidates = [
+            ("ArialUnicode", "/Library/Fonts/Arial Unicode.ttf"),
+            ("ArialUnicode", "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
+            ("Arial", "/System/Library/Fonts/Supplemental/Arial.ttf"),
+            ("Arial", "/Library/Fonts/Arial.ttf"),
+            ("Arial", "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf"),
+        ]
+        bold_candidates = [
+            ("Arial-Bold", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+            ("Arial-Bold", "/Library/Fonts/Arial Bold.ttf"),
+            ("Arial-Bold", "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf"),
+        ]
+        for name, path in candidates:
+            if os.path.isfile(path):
+                try:
+                    registerFont(TTFont(name, path))
+                    self.FONT_REGULAR = name
+                    break
+                except Exception:
+                    continue
+        for name, path in bold_candidates:
+            if os.path.isfile(path):
+                try:
+                    registerFont(TTFont(name, path))
+                    self.FONT_BOLD = name
+                    break
+                except Exception:
+                    continue
 
     def generate(self, path: str):
         doc = SimpleDocTemplate(path, pagesize=A4)
         elements = []
 
-        elements.append(Paragraph("Отчет по доле рынка", self.styles["Title"]))
+        elements.append(Paragraph("Отчет по доле рынка", self.style_title))
         elements.append(Spacer(1, 12))
 
         # Companies
-        elements.append(Paragraph("Предприятия", self.styles["Heading2"]))
+        elements.append(Paragraph("Предприятия", self.style_heading))
         companies = self.company_repo.get_all()
         data = [["ID", "Название", "Отрасль"]]
         for c in companies:
@@ -44,12 +91,13 @@ class ReportGenerator:
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("FONTNAME", (0, 0), (-1, -1), self.FONT_REGULAR),
         ]))
         elements.append(t)
         elements.append(Spacer(1, 12))
 
         # Sales
-        elements.append(Paragraph("Продажи", self.styles["Heading2"]))
+        elements.append(Paragraph("Продажи", self.style_heading))
         sales = self.sales_repo.get_all()
         if sales:
             data = [["ID", "ID товара", "Период", "Объем", "Цена", "Рекл. бюджет"]]
@@ -66,15 +114,16 @@ class ReportGenerator:
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("FONTNAME", (0, 0), (-1, -1), self.FONT_REGULAR),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),
             ]))
             elements.append(t)
         else:
-            elements.append(Paragraph("Нет данных о продажах", self.styles["Normal"]))
+            elements.append(Paragraph("Нет данных о продажах", self.style_normal))
         elements.append(Spacer(1, 12))
 
         # Market Share
-        elements.append(Paragraph("Доля рынка", self.styles["Heading2"]))
+        elements.append(Paragraph("Доля рынка", self.style_heading))
         shares = self.marketshare_repo.get_all()
         if shares:
             companies_map = {c.id: c.name for c in self.company_repo.get_all()}
@@ -92,22 +141,23 @@ class ReportGenerator:
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ("FONTNAME", (0, 0), (-1, -1), self.FONT_REGULAR),
             ]))
             elements.append(t)
         else:
-            elements.append(Paragraph("Доля рынка еще не рассчитана", self.styles["Normal"]))
+            elements.append(Paragraph("Доля рынка еще не рассчитана", self.style_normal))
         elements.append(Spacer(1, 12))
 
         # Build chart images
         img_buf = self._build_sales_chart()
         if img_buf:
-            elements.append(Paragraph("График продаж", self.styles["Heading2"]))
+            elements.append(Paragraph("График продаж", self.style_heading))
             elements.append(Image(img_buf, width=400, height=200))
             elements.append(Spacer(1, 12))
 
         img_buf2 = self._build_share_chart()
         if img_buf2:
-            elements.append(Paragraph("График доли рынка", self.styles["Heading2"]))
+            elements.append(Paragraph("График доли рынка", self.style_heading))
             elements.append(Image(img_buf2, width=400, height=200))
 
         doc.build(elements)

@@ -54,18 +54,19 @@ def seed():
 
     random.seed(42)
 
-    company_profiles = {
-        1: {"base_volume": 500, "trend": 8, "seasonal_amplitude": 0.15,
-            "base_price": 300, "price_elasticity": -0.5},
-        2: {"base_volume": 350, "trend": 3, "seasonal_amplitude": 0.30,
-            "base_price": 80, "price_elasticity": -0.3},
-        3: {"base_volume": 450, "trend": -2, "seasonal_amplitude": 0.10,
-            "base_price": 120, "price_elasticity": -0.4},
-        4: {"base_volume": 300, "trend": 5, "seasonal_amplitude": 0.05,
-            "base_price": 250, "price_elasticity": -0.2},
-        5: {"base_volume": 400, "trend": 2, "seasonal_amplitude": 0.08,
-            "base_price": 50, "price_elasticity": -0.6},
-    }
+    profile_templates = [
+        {"base_volume": 500, "trend": 8, "seasonal_amplitude": 0.15,
+         "base_price": 300, "price_elasticity": -0.5},
+        {"base_volume": 350, "trend": 3, "seasonal_amplitude": 0.30,
+         "base_price": 80, "price_elasticity": -0.3},
+        {"base_volume": 450, "trend": -2, "seasonal_amplitude": 0.10,
+         "base_price": 120, "price_elasticity": -0.4},
+        {"base_volume": 300, "trend": 5, "seasonal_amplitude": 0.05,
+         "base_price": 250, "price_elasticity": -0.2},
+        {"base_volume": 400, "trend": 2, "seasonal_amplitude": 0.08,
+         "base_price": 50, "price_elasticity": -0.6},
+    ]
+    company_profiles = dict(zip(company_ids, profile_templates))
 
     product_weights = {}
     for pid, cid in product_company_map.items():
